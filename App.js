@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import {
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -31,29 +32,55 @@ function StudentApp() {
   const [error, setError] = useState('');
   const [student, setStudent] = useState(null);
 
-  const openDetails = () => {
-    const name = userName.trim();
-    const id = studentId.trim();
+ const openDetails = () => {
+   const name = userName.trim().normalize('NFC');
+   const id = studentId.trim();
 
-    if (!name || !id) {
-      setError('Vui lòng nhập đầy đủ UserName và MSSV.');
-      return;
-    }
+   // Tên có dấu hoặc không dấu, chỉ gồm chữ cái và khoảng trắng.
+   const isNameValid =
+     /^\p{L}+(?: +\p{L}+)*$/u.test(name);
 
-    Keyboard.dismiss();
-    setError('');
-    setStudent({ userName: name, studentId: id });
-    setScreen('details');
-  };
+   // MSSV có dạng: B + 2 chữ cái + 22 đến 26 + 4 chữ số.
+   // Ví dụ hợp lệ: BIT240025
+   const isStudentIdValid =
+     /^B[A-Za-z]{2}2[2-6][0-9]{4}$/.test(id);
 
-  if (screen === 'details') {
+   Keyboard.dismiss();
+
+   if (!isNameValid || !isStudentIdValid) {
+     const message =
+       'Thông tin bạn nhập chưa hợp lệ.\n\n' +
+       'Tên chỉ được chứa chữ cái và khoảng trắng.\n' +
+       'MSSV phải có dạng B + 2 chữ cái + 22–26 + 4 chữ số.\n' +
+       'Ví dụ: BIT240025.';
+
+     setError(message);
+
+     Alert.alert('Thông báo', message, [
+       { text: 'OK' },
+     ]);
+
+     return;
+   }
+
+   setError('');
+
+   setStudent({
+     userName: name,
+     studentId: id,
+   });
+
+   setScreen('details');
+ };
+
+  if (screen === 'details' && student) {
     return (
       <SafeAreaView style={styles.screen}>
         <StatusBar style="dark" />
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Quay lại Screen 1"
+          accessibilityLabel="Quay lại màn hình nhập thông tin"
           onPress={() => setScreen('form')}
           style={styles.backButton}
         >
@@ -90,7 +117,7 @@ function StudentApp() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.numberGrid}>
-            {/* Hàng 1: hai ô rộng bằng nhau */}
+            {/* Hàng 1: ô 1 và ô 2 */}
             <View style={styles.numberRow}>
               <View style={[styles.numberBox, styles.blueBox]}>
                 <Text style={styles.numberText}>1</Text>
@@ -101,7 +128,7 @@ function StudentApp() {
               </View>
             </View>
 
-            {/* Hàng 2: nhóm 3, 4 rộng bằng ô 5 */}
+            {/* Hàng 2: nhóm ô 3, 4 rộng bằng ô 5 */}
             <View style={styles.numberRow}>
               <View style={styles.leftGroup}>
                 <View style={[styles.numberBox, styles.yellowBox]}>
@@ -120,7 +147,7 @@ function StudentApp() {
               </View>
             </View>
 
-            {/* Hàng 3: ô 6 rộng toàn hàng, thấp hơn một chút */}
+            {/* Hàng 3: ô 6 rộng toàn hàng */}
             <View style={[styles.numberRow, styles.lastRow]}>
               <View style={[styles.numberBox, styles.orangeBox]}>
                 <Text style={styles.numberText}>6</Text>
@@ -136,6 +163,7 @@ function StudentApp() {
             <TextInput
               accessibilityLabel="UserName"
               autoCapitalize="words"
+              autoCorrect={false}
               placeholder="Enter your name"
               placeholderTextColor="#888"
               style={styles.input}
@@ -150,6 +178,7 @@ function StudentApp() {
               accessibilityLabel="MSSV"
               autoCapitalize="none"
               autoCorrect={false}
+              keyboardType="default"
               placeholder="Enter your student ID"
               placeholderTextColor="#888"
               style={styles.input}
@@ -163,7 +192,10 @@ function StudentApp() {
             />
 
             {!!error && (
-              <Text style={styles.error} accessibilityLiveRegion="polite">
+              <Text
+                style={styles.error}
+                accessibilityLiveRegion="polite"
+              >
                 {error}
               </Text>
             )}
@@ -176,7 +208,9 @@ function StudentApp() {
                 pressed && styles.pressed,
               ]}
             >
-              <Text style={styles.clickButtonText}>Click me</Text>
+              <Text style={styles.clickButtonText}>
+                Click me
+              </Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -200,26 +234,22 @@ const styles = StyleSheet.create({
     padding: 16,
   },
 
-  // Khối màu trong mẫu: rộng / cao ≈ 0.84.
   numberGrid: {
     width: '100%',
     aspectRatio: 0.84,
     gap: 8,
   },
 
-  // Hai hàng đầu cao bằng nhau.
   numberRow: {
     flex: 1,
     flexDirection: 'row',
     gap: 8,
   },
 
-  // Hàng cuối thấp hơn hai hàng trên.
   lastRow: {
     flex: 0.83,
   },
 
-  // Nhóm ô 3 và 4 chiếm nửa chiều ngang.
   leftGroup: {
     flex: 1,
     flexDirection: 'row',
@@ -232,7 +262,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Style này bị thiếu nên các số trước đó rất nhỏ.
   numberText: {
     color: '#fff',
     fontSize: 56,
